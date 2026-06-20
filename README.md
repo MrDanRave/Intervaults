@@ -3,7 +3,8 @@
 An [Obsidian](https://obsidian.md) plugin that renders multiple vaults as a single interactive graph, shows notes shared across vaults as intersections, and lets you diff and merge conflicting versions side-by-side.
 
 > **Desktop only** — the plugin reads files directly from disk and requires the Obsidian desktop app.
-> **This software was vibe coded**
+>
+>  This software was vibe coded.
 
 ---
 
@@ -82,8 +83,8 @@ All visual parameters are live-adjustable without reshuffling the graph:
 
 ### Build from source
 ```bash
-git clone https://github.com/MrDanRave/intervault-graph
-cd intervault-graph
+git clone https://github.com/MrDanRave/intervaults
+cd intervaults
 npm install
 npm run build   # outputs main.js
 ```
@@ -92,7 +93,7 @@ npm run build   # outputs main.js
 
 ## Usage
 
-1. Open **Settings → Intervault Graph** and enter one absolute vault folder path per line.
+1. Open **Settings → Intervaults** and enter one absolute vault folder path per line.
 2. Click **Open graph** (or use the ribbon icon / command palette: *Open intervault graph*).
 3. Expand **Settings** in the top-right corner of the graph view to adjust themes, filters, groups, and display parameters.
 
