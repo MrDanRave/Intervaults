@@ -1,4 +1,4 @@
-# Intervault Graph
+# Intervaults
 
 An [Obsidian](https://obsidian.md) plugin that renders multiple vaults as a single interactive graph, shows notes shared across vaults as intersections, and lets you diff and merge conflicting versions side-by-side.
 
