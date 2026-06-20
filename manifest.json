@@ -1,0 +1,10 @@
+{
+  "id": "intervault-graph",
+  "name": "Intervaults",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Visualise multiple Obsidian vaults as an interactive graph, compare shared notes across vaults, and merge conflicting versions side-by-side.",
+  "author": "MrDanRave",
+  "authorUrl": "https://github.com/MrDanRave",
+  "isDesktopOnly": true
+}
