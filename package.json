@@ -1,6 +1,6 @@
 {
   "name": "intervault-graph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Intervault graph plugin",
   "main": "main.js",
   "scripts": {
