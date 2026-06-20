@@ -1,9 +1,8 @@
 # Intervaults
 
 An [Obsidian](https://obsidian.md) plugin that renders multiple vaults as a single interactive graph, shows notes shared across vaults as intersections, and lets you diff and merge conflicting versions side-by-side.
-
 > **Desktop only** — the plugin reads files directly from disk and requires the Obsidian desktop app.
->
+<img width="1916" height="1058" alt="inter" src="https://github.com/user-attachments/assets/c28ed589-a15a-4efe-baed-c849e463a3db" />
 >  This software was vibe coded.
 
 ---
