@@ -77,13 +77,13 @@ All visual parameters are live-adjustable without reshuffling the graph:
 
 ### Manual install
 1. Download `main.js` and `manifest.json` from the [latest release](../../releases/latest).
-2. Copy them into `<your-vault>/.obsidian/plugins/intervault-graph/`.
+2. Copy them into `<your-vault>/.obsidian/plugins/intervaults/`.
 3. Enable the plugin in **Settings → Community plugins**.
 
 ### Build from source
 ```bash
-git clone https://github.com/MrDanRave/intervault-graph
-cd intervault-graph
+git clone https://github.com/MrDanRave/Intervaults
+cd Intervaults
 npm install
 npm run build   # outputs main.js
 ```
@@ -100,7 +100,7 @@ npm run build   # outputs main.js
 
 ## Requirements
 
-- Obsidian **1.4.0** or later.
+- Obsidian **1.7.2** or later.
 - Desktop app (Windows, macOS, Linux) — mobile is not supported.
 
 ---

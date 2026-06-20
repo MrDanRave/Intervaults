@@ -105,7 +105,7 @@ export default class IntervaultGraphPlugin extends Plugin {
 
     // Global filters: keep any stored array (even empty), else none.
     merged.filters = Array.isArray(raw?.filters)
-      ? (raw!.filters as Partial<QueryRule>[])
+      ? raw!.filters
           .filter((f): f is Partial<QueryRule> & { query: string } => f != null && typeof f.query === "string")
           .map((f, i) => ({ id: f.id ?? `f${i}`, query: f.query }))
       : [];
@@ -113,7 +113,7 @@ export default class IntervaultGraphPlugin extends Plugin {
     // Global groups: keep any stored array (even empty = "user deleted all");
     // otherwise migrate from legacy per-palette colours, else seed defaults.
     if (Array.isArray(raw?.groups)) {
-      merged.groups = (raw!.groups as Partial<GroupRule>[])
+      merged.groups = raw!.groups
         .filter((g): g is Partial<GroupRule> & { query: string } => g != null && typeof g.query === "string")
         .map((g, i) => ({ id: g.id ?? `g${i}`, query: g.query, color: g.color ?? "#888888" }));
     } else {

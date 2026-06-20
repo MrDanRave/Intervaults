@@ -388,7 +388,7 @@ export class GraphView extends ItemView {
     const colorDot = (parent: HTMLElement, value: string, onSet: (v: string) => void) => {
       const dot = parent.createEl("span", { cls: "ivg-preset-dot" });
       dot.setCssStyles({ background: value });
-      const input = dot.createEl("input") as HTMLInputElement;
+      const input = dot.createEl("input");
       input.type = "color";
       input.value = value;
       input.addClass("ivg-hidden-color");
@@ -1767,7 +1767,7 @@ class MergeModal extends Modal {
     cell.addEventListener("blur", (e) => {
       // Re-align/recolor only when focus leaves the editor entirely (avoids
       // rebuilding the DOM out from under a click on the next cell).
-      const next = (e as FocusEvent).relatedTarget as Element | null;
+      const next = (e as FocusEvent).relatedTarget;
       if (next && this.bodyEl.contains(next)) return;
       this.recomputeRows();
       this.renderBody();
