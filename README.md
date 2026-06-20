@@ -82,7 +82,7 @@ All visual parameters are live-adjustable without reshuffling the graph:
 
 ### Build from source
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/intervault-graph
+git clone https://github.com/MrDanRave/intervault-graph
 cd intervault-graph
 npm install
 npm run build   # outputs main.js

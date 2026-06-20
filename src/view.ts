@@ -88,7 +88,7 @@ function brightestLast(colors: string[]): string[] {
 }
 
 function svg(tag: string, attrs: Record<string, string>): SVGElement {
-  const el = document.createElementNS(SVGNS, tag);
+  const el = activeDocument.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
 }
@@ -318,13 +318,13 @@ export class GraphView extends ItemView {
     const ctrlCol = host.createEl("div", { cls: "ivg-ctrl-col" });
     const toggle = ctrlCol.createEl("button", { cls: "ivg-gear", text: "Settings" });
     const panel = ctrlCol.createEl("div", { cls: "ivg-panel" });
-    panel.style.display = this.menuOpen ? "block" : "none";
+    panel.setCssStyles({ display: this.menuOpen ? "block" : "none" });
     const refresh = ctrlCol.createEl("button", { cls: "ivg-gear", text: "Refresh" });
     refresh.setAttribute("aria-label", "Respawn graph");
     refresh.addEventListener("click", () => this.render());
     toggle.addEventListener("click", () => {
       this.menuOpen = !this.menuOpen;
-      panel.style.display = this.menuOpen ? "block" : "none";
+      panel.setCssStyles({ display: this.menuOpen ? "block" : "none" });
       if (!this.menuOpen) {
         // Collapse all open groups so the panel starts clean on next open
         for (const [id, apply] of applyById) { this.openSections.delete(id); apply(false); }
@@ -332,10 +332,10 @@ export class GraphView extends ItemView {
     });
 
     // Debounced pop so a continuous colour-picker drag yields a single pop.
-    let popTimer: ReturnType<typeof setTimeout> | null = null;
+    let popTimer: ReturnType<typeof window.setTimeout> | null = null;
     const popSoon = () => {
-      if (popTimer) clearTimeout(popTimer);
-      popTimer = setTimeout(() => { popTimer = null; this.popGraph?.(); }, 130);
+      if (popTimer) window.clearTimeout(popTimer);
+      popTimer = window.setTimeout(() => { popTimer = null; this.popGraph?.(); }, 130);
     };
 
     // Refresh the graph's visuals on every settings change (in place, no reshuffle),
@@ -362,7 +362,7 @@ export class GraphView extends ItemView {
       head.createEl("span", { cls: "ivg-grp-title", text: title });
       const body = g.createEl("div", { cls: "ivg-grp-body" });
       const apply = (open: boolean) => {
-        body.style.display = open ? "block" : "none";
+        body.setCssStyles({ display: open ? "block" : "none" });
         chev.setText(open ? "▾" : "▸"); // ▾ / ▸ (not emoji)
       };
       applyById.set(id, apply);
@@ -387,23 +387,16 @@ export class GraphView extends ItemView {
     // dot span with a hidden native <input type=color> behind it.
     const colorDot = (parent: HTMLElement, value: string, onSet: (v: string) => void) => {
       const dot = parent.createEl("span", { cls: "ivg-preset-dot" });
-      dot.style.background = value;
+      dot.setCssStyles({ background: value });
       const input = dot.createEl("input") as HTMLInputElement;
       input.type = "color";
       input.value = value;
       input.addClass("ivg-hidden-color");
       // "input" → live dot colour preview only (no graph refresh avoids partial-reshuffle mid-drag)
-      input.addEventListener("input", () => { dot.style.background = input.value; onSet(input.value); });
+      input.addEventListener("input", () => { dot.setCssStyles({ background: input.value }); onSet(input.value); });
       // "change" (picker commit) → save + full reload with reshuffle every time
-      input.addEventListener("change", async () => { onSet(input.value); await this.plugin.saveSettings(); this.render(); });
+      input.addEventListener("change", () => { onSet(input.value); void this.plugin.saveSettings().then(() => this.render()); });
       return { dot, input };
-    };
-
-    // Dot that opens its picker on click (for Vaults / Intersections rows).
-    const colorPicker = (parent: HTMLElement, value: string, onSet: (v: string) => void) => {
-      const { dot, input } = colorDot(parent, value, onSet);
-      dot.addEventListener("click", (e) => { e.stopPropagation(); input.click(); });
-      return dot;
     };
 
     const populate = () => {
@@ -419,20 +412,19 @@ export class GraphView extends ItemView {
             if (p.id === sel.id) rowEl.addClass("selected");
 
             // Click the row → select this theme (or exit an open inline editor)
-            rowEl.addEventListener("click", async () => {
+            rowEl.addEventListener("click", () => {
               if (this.editName === p.id || this.editColors === p.id) {
                 this.editName = null; this.editColors = null; populate(); return;
               }
               if (this.plugin.settings.palette === p.id) return;
               this.plugin.settings.palette = p.id;
               this.editName = null; this.editColors = null;
-              await this.plugin.saveSettings();
-              this.render(); // full reload (respawn + reshuffle intersections)
+              void this.plugin.saveSettings().then(() => this.render());
             });
 
             if (this.editName === p.id) {
               // Rename mode: name text-box + Delete inline; colours hidden
-              const nameIn = rowEl.createEl("input", { cls: "ivg-preset-name" }) as HTMLInputElement;
+              const nameIn = rowEl.createEl("input", { cls: "ivg-preset-name", type: "text" });
               nameIn.type = "text";
               nameIn.value = p.name;
               nameIn.addEventListener("click", (e) => e.stopPropagation());
@@ -446,18 +438,18 @@ export class GraphView extends ItemView {
                 populate();
               };
               nameIn.addEventListener("keydown", (e) => {
-                const k = (e as KeyboardEvent).key;
+                const k = e.key;
                 if (k === "Enter") nameIn.blur(); // triggers blur → commitName
                 else if (k === "Escape") { nameCommitted = true; this.editName = null; populate(); }
               });
               // Confirm on blur: covers both Enter (which calls blur) and click-outside
-              nameIn.addEventListener("blur", commitName);
+              nameIn.addEventListener("blur", () => void commitName());
               const del = rowEl.createEl("button", { cls: "ivg-preset-del", text: "Delete" });
               del.toggleClass("ivg-disabled", this.plugin.settings.palettes.length <= 1);
               // Keep focus on mousedown so the name input's blur→commit→populate()
               // doesn't tear down this button before its click handler runs.
               del.addEventListener("mousedown", (e) => e.preventDefault());
-              del.addEventListener("click", async (e) => {
+              del.addEventListener("click", (e) => {
                 e.stopPropagation();
                 nameCommitted = true; // suppress the pending name-commit
                 if (this.plugin.settings.palettes.length <= 1) return;
@@ -465,10 +457,9 @@ export class GraphView extends ItemView {
                 this.plugin.settings.palettes = this.plugin.settings.palettes.filter((x) => x.id !== p.id);
                 if (wasSel) this.plugin.settings.palette = this.plugin.settings.palettes[0].id;
                 this.editName = null;
-                await applyLive();
-                populate();
+                void applyLive().then(() => populate());
               });
-              setTimeout(() => { nameIn.focus(); nameIn.select(); }, 0); // select-all the current name
+              window.setTimeout(() => { nameIn.focus(); nameIn.select(); }, 0); // select-all the current name
             } else {
               // Single line: [name] | [3 colour dots]. Double-click a dot to edit
               // it (opens its picker + highlights it); in edit mode a single click
@@ -505,11 +496,10 @@ export class GraphView extends ItemView {
 
           const addBtn = b.createEl("button", { cls: "ivg-palette-add", text: "+" });
           addBtn.setAttribute("aria-label", "New preset");
-          addBtn.addEventListener("click", async () => {
+          addBtn.addEventListener("click", () => {
             this.addPreset();
             this.editName = null; this.editColors = null;
-            await applyLive();
-            populate();
+            void applyLive().then(() => populate());
           });
         });
 
@@ -529,15 +519,14 @@ export class GraphView extends ItemView {
             });
             vi.addEventListener("change", () => { vd.removeClass("selected"); activeVaultDot = null; });
             r.createEl("span", { cls: "ivg-vault-name", text: meta.name });
-            const sel2 = r.createEl("select", { cls: "ivg-style-select" }) as HTMLSelectElement;
+            const sel2 = r.createEl("select", { cls: "ivg-style-select" });
             STYLE_NAMES.forEach((nm, si) => {
               const opt = sel2.createEl("option", { text: nm, value: String(si) });
               if (si === ap.style) opt.selected = true;
             });
-            sel2.addEventListener("change", async () => {
+            sel2.addEventListener("change", () => {
               sel.vaultStyles[meta.name] = parseInt(sel2.value, 10); // per-preset override
-              await this.plugin.saveSettings();
-              this.render(); // full reload (respawn + pop), as with colour edits
+              void this.plugin.saveSettings().then(() => this.render());
             });
           });
         });
@@ -609,7 +598,7 @@ export class GraphView extends ItemView {
           }
 
           // Query textbox
-          const txt = row.createEl("input", { cls: "ivg-rule-txt" }) as HTMLInputElement;
+          const txt = row.createEl("input", { cls: "ivg-rule-txt", type: "text" });
           txt.type = "text";
           txt.value = isNew ? "" : rule.query;
           txt.placeholder = "e.g. Diff(2+)";
@@ -617,12 +606,12 @@ export class GraphView extends ItemView {
 
           // Inline suggestion list (pushes content down — never floats)
           const suggestEl = wrap.createEl("div", { cls: "ivg-rule-suggest" });
-          suggestEl.style.display = "none";
+          suggestEl.setCssStyles({ display: "none" });
           const showSuggestions = (val: string) => {
             suggestEl.empty();
             // Empty textbox → usage help instead of function suggestions
             if (val.trim() === "") {
-              suggestEl.style.display = "block";
+              suggestEl.setCssStyles({ display: "block" });
               const help = suggestEl.createEl("div", { cls: "ivg-rule-help" });
               help.createEl("div", { cls: "ivg-help-line bold", text: "Function(#)" });
               help.createEl("div", { cls: "ivg-help-line italic", text: "Use #+ or #- for ranges" });
@@ -630,8 +619,8 @@ export class GraphView extends ItemView {
               return;
             }
             const sugs = suggestionsFor(val);
-            if (!sugs.length) { suggestEl.style.display = "none"; return; }
-            suggestEl.style.display = "block";
+            if (!sugs.length) { suggestEl.setCssStyles({ display: "none" }); return; }
+            suggestEl.setCssStyles({ display: "block" });
             sugs.forEach(({ text, hint }) => {
               const item = suggestEl.createEl("div", { cls: "ivg-sug-item" });
               item.createEl("span", { cls: "ivg-sug-text", text });
@@ -640,21 +629,21 @@ export class GraphView extends ItemView {
                 e.preventDefault(); // keep focus so the textbox commit fires cleanly
                 txt.value = text;
                 txt.removeClass("ivg-rule-invalid");
-                suggestEl.style.display = "none";
+                suggestEl.setCssStyles({ display: "none" });
                 txt.dispatchEvent(new Event("change"));
               });
             });
           };
 
           txt.addEventListener("focus", () => showSuggestions(txt.value));
-          txt.addEventListener("blur", () => setTimeout(() => { suggestEl.style.display = "none"; }, 160));
+          txt.addEventListener("blur", () => window.setTimeout(() => { suggestEl.setCssStyles({ display: "none" }); }, 160));
           txt.addEventListener("input", () => {
             const ok = !!parseQuery(txt.value);
             txt.toggleClass("ivg-rule-invalid", txt.value.length > 0 && !ok);
             rd?.toggleClass("ivg-disabled", !ok);
             showSuggestions(txt.value);
           });
-          txt.addEventListener("change", async () => {
+          txt.addEventListener("change", () => {
             const term = parseQuery(txt.value);
             if (!term) {
               if (isNew && !txt.value.trim()) {
@@ -669,20 +658,18 @@ export class GraphView extends ItemView {
             }
             rule.query = normalizeQuery(term);
             this.newQueryId = null;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
-          if (isNew) setTimeout(() => { txt.focus(); showSuggestions(""); }, 0);
+          if (isNew) window.setTimeout(() => { txt.focus(); showSuggestions(""); }, 0);
 
           // Delete button
           const rm = row.createEl("button", { cls: "ivg-preset-del", text: "×" });
-          rm.addEventListener("click", async (e) => {
+          rm.addEventListener("click", (e) => {
             e.stopPropagation();
             const i = rules.indexOf(rule);
             if (i >= 0) rules.splice(i, 1);
             if (this.newQueryId === rule.id) this.newQueryId = null;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
 
           // Drag-reorder handle (Groups only — top group wins when many match)
@@ -697,7 +684,7 @@ export class GraphView extends ItemView {
               wrap.addClass("ivg-rule-dragging");
               const onMove = (ev: MouseEvent) => {
                 const dy = ev.clientY - startY;
-                wrap.style.transform = `translateY(${dy}px)`;
+                wrap.setCssStyles({ transform: `translateY(${dy}px)` });
                 const ni = Math.max(0, Math.min(rules.length - 1, index + Math.round(dy / rowH)));
                 if (ni !== targetIdx) {
                   targetIdx = ni;
@@ -706,20 +693,19 @@ export class GraphView extends ItemView {
                     const shift =
                       index < targetIdx ? (i > index && i <= targetIdx ? -rowH : 0) :
                       (i < index && i >= targetIdx ? rowH : 0);
-                    w.style.transform = `translateY(${shift}px)`;
+                    w.setCssStyles({ transform: `translateY(${shift}px)` });
                   });
                 }
               };
-              const onUp = async () => {
+              const onUp = () => {
                 window.removeEventListener("mousemove", onMove);
                 window.removeEventListener("mouseup", onUp);
                 wrap.removeClass("ivg-rule-dragging");
-                wrapEls.forEach((w) => { w.style.transform = ""; });
+                wrapEls.forEach((w) => { w.setCssStyles({ transform: "" }); });
                 if (targetIdx !== index) {
                   const [moved] = rules.splice(index, 1);
                   rules.splice(targetIdx, 0, moved);
-                  await this.plugin.saveSettings();
-                  this.render();
+                  void this.plugin.saveSettings().then(() => this.render());
                 }
               };
               window.addEventListener("mousemove", onMove);
@@ -737,12 +723,11 @@ export class GraphView extends ItemView {
           );
           const add = fb.createEl("button", { cls: "ivg-palette-add", text: "+" });
           add.setAttribute("aria-label", "New filter");
-          add.addEventListener("click", async () => {
+          add.addEventListener("click", () => {
             const id = `f${(settings.filters.length ? Math.max(...settings.filters.map((x) => parseInt(x.id.replace(/\D/g, ""), 10) || 0)) : 0) + 1}`;
             settings.filters.push({ id, query: "" });
             this.newQueryId = id;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
         });
 
@@ -755,12 +740,11 @@ export class GraphView extends ItemView {
           );
           const add = gb.createEl("button", { cls: "ivg-palette-add", text: "+" });
           add.setAttribute("aria-label", "New group");
-          add.addEventListener("click", async () => {
+          add.addEventListener("click", () => {
             const id = `g${(settings.groups.length ? Math.max(...settings.groups.map((x) => parseInt(x.id.replace(/\D/g, ""), 10) || 0)) : 0) + 1}`;
             settings.groups.push({ id, query: "", color: "#cccccc" });
             this.newQueryId = id;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
         });
       });
@@ -776,25 +760,25 @@ export class GraphView extends ItemView {
         ) => {
           const row = db.createEl("div", { cls: "ivg-disp-row" });
           row.createEl("span", { cls: "ivg-disp-name", text: label });
-          const input = row.createEl("input") as HTMLInputElement;
+          const input = row.createEl("input", { type: "range" });
           input.type = "range"; input.min = String(min); input.max = String(max); input.step = String(step);
           input.value = String(d[key]);
           const valEl = row.createEl("span", { cls: "ivg-disp-val", text: fmt(d[key] as number) });
-          input.addEventListener("input", async () => {
-            (d as unknown as Record<string, unknown>)[key] = parseFloat(input.value);
+          input.addEventListener("input", () => {
+            (d as Record<string, unknown>)[key] = parseFloat(input.value);
             valEl.setText(fmt(parseFloat(input.value)));
-            await commit();
+            void commit();
           });
         };
 
         const toggle = (label: string, key: keyof typeof d) => {
           const row = db.createEl("label", { cls: "ivg-disp-row" });
-          const cb = row.createEl("input") as HTMLInputElement;
-          cb.type = "checkbox"; cb.checked = d[key] as boolean;
+          const cb = row.createEl("input", { type: "checkbox" });
+          cb.checked = d[key] as boolean;
           row.createEl("span", { cls: "ivg-disp-name", text: label });
-          cb.addEventListener("change", async () => {
-            (d as unknown as Record<string, unknown>)[key] = cb.checked;
-            await commit();
+          cb.addEventListener("change", () => {
+            (d as Record<string, unknown>)[key] = cb.checked;
+            void commit();
           });
         };
 
@@ -805,17 +789,17 @@ export class GraphView extends ItemView {
         // Inline fade row: [checkbox] [label] [short slider] [value]
         {
           const row = db.createEl("div", { cls: "ivg-disp-row" });
-          const cb = row.createEl("input") as HTMLInputElement;
-          cb.type = "checkbox"; cb.checked = d.fadeLabelsOnZoom;
-          cb.addEventListener("change", async () => { d.fadeLabelsOnZoom = cb.checked; await commit(); });
+          const cb = row.createEl("input", { type: "checkbox" });
+          cb.checked = d.fadeLabelsOnZoom;
+          cb.addEventListener("change", () => { d.fadeLabelsOnZoom = cb.checked; void commit(); });
           row.createEl("span", { cls: "ivg-disp-name", text: "Fade zoom" });
-          const sl = row.createEl("input") as HTMLInputElement;
-          sl.type = "range"; sl.min = "0.5"; sl.max = "3.0"; sl.step = "0.1";
+          const sl = row.createEl("input", { type: "range" });
+          sl.min = "0.5"; sl.max = "3.0"; sl.step = "0.1";
           sl.value = String(d.fadeLabelAt);
-          sl.style.flex = "0 0 64px"; // shorter so checkbox + label + val all fit
+          sl.setCssStyles({ flex: "0 0 64px" }); // shorter so checkbox + label + val all fit
           const val = row.createEl("span", { cls: "ivg-disp-val", text: d.fadeLabelAt.toFixed(1) });
-          sl.addEventListener("input", async () => {
-            d.fadeLabelAt = parseFloat(sl.value); val.setText(d.fadeLabelAt.toFixed(1)); await commit();
+          sl.addEventListener("input", () => {
+            d.fadeLabelAt = parseFloat(sl.value); val.setText(d.fadeLabelAt.toFixed(1)); void commit();
           });
         }
         toggle("Vault labels", "showVaultLabels");
@@ -827,19 +811,17 @@ export class GraphView extends ItemView {
             const ap = this.appearance.get(meta.name)!;
             const r = b.createEl("label", { cls: "ivg-vault-row" });
             // Order: [checkbox] [vault name] [colour dot indicator]
-            const cb = r.createEl("input") as HTMLInputElement;
-            cb.type = "checkbox";
+            const cb = r.createEl("input", { type: "checkbox" });
             cb.checked = !dim.has(meta.name);
             r.createEl("span", { cls: "ivg-vault-name", text: meta.name });
             const sw = r.createEl("span", { cls: "ivg-preset-dot" });
-            sw.style.background = ap.color;
-            sw.style.pointerEvents = "none";
-            cb.addEventListener("change", async () => {
+            sw.setCssStyles({ background: ap.color, pointerEvents: "none" });
+            cb.addEventListener("change", () => {
               const set = new Set(this.plugin.settings.dimVaults);
               if (cb.checked) set.delete(meta.name);
               else set.add(meta.name);
               this.plugin.settings.dimVaults = [...set];
-              await applyLive();
+              void applyLive();
             });
           });
         });
@@ -847,7 +829,7 @@ export class GraphView extends ItemView {
 
       // ── Restore Defaults (direct button, not collapsible) ────────────────
       const restoreBtn = panel.createEl("button", { cls: "ivg-restore-btn", text: "Restore Defaults" });
-      restoreBtn.addEventListener("click", async () => {
+      restoreBtn.addEventListener("click", () => {
         const s = this.plugin.settings;
         // Reset all seed presets to factory values (fresh clone), keep custom ones
         const customs = s.palettes.filter((p) => !SEED_PALETTES.some((seed) => seed.id === p.id));
@@ -856,8 +838,7 @@ export class GraphView extends ItemView {
         s.dimVaults = [];
         s.filters = [];
         s.groups = defaultGroups();
-        await this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings().then(() => this.render());
       });
     };
 
@@ -1109,8 +1090,8 @@ export class GraphView extends ItemView {
         for (const other of lineEls) {
           if (other === le) continue;
           if (this.appearance.get(other.meta.name)?.dim) continue; // keep lights-off as-is
-          other.path.style.opacity = "0.9";
-          if (other.inner) other.inner.style.opacity = "0.9";
+          other.path.setCssStyles({ opacity: "0.9" });
+          if (other.inner) other.inner.setCssStyles({ opacity: "0.9" });
         }
         path.style.strokeWidth = String(width + 1.4);
       });
@@ -1513,10 +1494,10 @@ export class GraphView extends ItemView {
     const loop = () => {
       const alive = sim.tick();
       syncAndDraw();
-      this.rafId = alive ? requestAnimationFrame(loop) : null;
+      this.rafId = alive ? window.requestAnimationFrame(loop) : null;
     };
     const ensureRunning = () => {
-      if (this.rafId === null) this.rafId = requestAnimationFrame(loop);
+      if (this.rafId === null) this.rafId = window.requestAnimationFrame(loop);
     };
 
     // Warm-up: pre-settle the layout off-screen so it doesn't load clumped.
@@ -1526,7 +1507,7 @@ export class GraphView extends ItemView {
     sim.reheat(0.15); // a little life left so it eases in
     syncAndDraw();
     this.applyDisplay?.(); // initial dot size / line thickness / label visibility
-    this.rafId = requestAnimationFrame(loop);
+    this.rafId = window.requestAnimationFrame(loop);
 
     this.popGraph?.(); // pop/expand on load
     return wrap;
@@ -1585,7 +1566,7 @@ export class GraphView extends ItemView {
     if (allSame) {
       const dest = this.app.metadataCache.getFirstLinkpathDest(title, "");
       if (dest) {
-        this.app.workspace.getLeaf(false).openFile(dest);
+        void this.app.workspace.getLeaf(false).openFile(dest);
       } else {
         // Not present in the active vault — fall back to opening by absolute path
         this.openNoteByPath(versions[0].filePath);
@@ -1662,7 +1643,7 @@ class MergeModal extends Modal {
 
     if (this.versions.length > 2) {
       const mkSelect = (cell: HTMLElement, which: "left" | "right", current: number) => {
-        const sel = cell.createEl("select", { cls: "ivg-head-select" }) as HTMLSelectElement;
+        const sel = cell.createEl("select", { cls: "ivg-head-select" });
         this.versions.forEach((v, i) => {
           const opt = sel.createEl("option", { text: v.vaultName, value: String(i) });
           if (i === current) opt.selected = true;
@@ -1786,7 +1767,7 @@ class MergeModal extends Modal {
     cell.addEventListener("blur", (e) => {
       // Re-align/recolor only when focus leaves the editor entirely (avoids
       // rebuilding the DOM out from under a click on the next cell).
-      const next = (e as FocusEvent).relatedTarget as HTMLElement | null;
+      const next = (e as FocusEvent).relatedTarget as Element | null;
       if (next && this.bodyEl.contains(next)) return;
       this.recomputeRows();
       this.renderBody();

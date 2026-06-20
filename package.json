@@ -12,7 +12,6 @@
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@types/node": "^16.18.96",
-    "builtin-modules": "^3.3.0",
     "esbuild": "^0.21.5",
     "obsidian": "latest",
     "tslib": "^2.6.3",

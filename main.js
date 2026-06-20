@@ -96,7 +96,7 @@ var IntervaultSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Intervault Graph" });
+    new import_obsidian.Setting(containerEl).setName("Intervault Graph").setHeading();
     containerEl.createEl("p", {
       cls: "setting-item-description",
       text: "Enter one absolute vault folder path per line. The folder name becomes the vault's display name and the name used to open it (obsidian://open?vault=NAME)."
@@ -105,7 +105,7 @@ var IntervaultSettingTab = class extends import_obsidian.PluginSettingTab {
       ta.setPlaceholder("C:\\Users\\you\\Vaults\\Work\nC:\\Users\\you\\Vaults\\Personal");
       ta.setValue(this.plugin.settings.vaultPaths.join("\n"));
       ta.inputEl.rows = 8;
-      ta.inputEl.style.width = "100%";
+      ta.inputEl.setCssStyles({ width: "100%" });
       ta.onChange(async (value) => {
         this.plugin.settings.vaultPaths = value.split("\n");
         await this.plugin.saveSettings();
@@ -174,7 +174,6 @@ var PALETTE = [
   "#528bff",
   "#7f848e"
 ];
-var GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 function smoothPath(pts) {
   var _a, _b;
   const n = pts.length;
@@ -210,7 +209,6 @@ function computeScatter(data, width = 900, height = 620) {
   const cy = height / 2;
   const R = Math.min(width, height) * 0.46;
   const titles = [...data.sharedTitles];
-  const n = titles.length;
   const notes = [];
   titles.forEach((title) => {
     var _a, _b;
@@ -480,7 +478,7 @@ function brightestLast(colors) {
   return [...colors].sort((a, b) => luminance(a) - luminance(b));
 }
 function svg(tag, attrs) {
-  const el = document.createElementNS(SVGNS, tag);
+  const el = activeDocument.createElementNS(SVGNS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
 }
@@ -682,13 +680,13 @@ var GraphView = class extends import_obsidian2.ItemView {
     const ctrlCol = host.createEl("div", { cls: "ivg-ctrl-col" });
     const toggle = ctrlCol.createEl("button", { cls: "ivg-gear", text: "Settings" });
     const panel = ctrlCol.createEl("div", { cls: "ivg-panel" });
-    panel.style.display = this.menuOpen ? "block" : "none";
+    panel.setCssStyles({ display: this.menuOpen ? "block" : "none" });
     const refresh = ctrlCol.createEl("button", { cls: "ivg-gear", text: "Refresh" });
     refresh.setAttribute("aria-label", "Respawn graph");
     refresh.addEventListener("click", () => this.render());
     toggle.addEventListener("click", () => {
       this.menuOpen = !this.menuOpen;
-      panel.style.display = this.menuOpen ? "block" : "none";
+      panel.setCssStyles({ display: this.menuOpen ? "block" : "none" });
       if (!this.menuOpen) {
         for (const [id, apply] of applyById) {
           this.openSections.delete(id);
@@ -698,8 +696,8 @@ var GraphView = class extends import_obsidian2.ItemView {
     });
     let popTimer = null;
     const popSoon = () => {
-      if (popTimer) clearTimeout(popTimer);
-      popTimer = setTimeout(() => {
+      if (popTimer) window.clearTimeout(popTimer);
+      popTimer = window.setTimeout(() => {
         var _a;
         popTimer = null;
         (_a = this.popGraph) == null ? void 0 : _a.call(this);
@@ -722,7 +720,7 @@ var GraphView = class extends import_obsidian2.ItemView {
       head.createEl("span", { cls: "ivg-grp-title", text: title });
       const body = g.createEl("div", { cls: "ivg-grp-body" });
       const apply = (open) => {
-        body.style.display = open ? "block" : "none";
+        body.setCssStyles({ display: open ? "block" : "none" });
         chev.setText(open ? "\u25BE" : "\u25B8");
       };
       applyById.set(id, apply);
@@ -746,29 +744,20 @@ var GraphView = class extends import_obsidian2.ItemView {
     };
     const colorDot = (parent, value, onSet) => {
       const dot = parent.createEl("span", { cls: "ivg-preset-dot" });
-      dot.style.background = value;
+      dot.setCssStyles({ background: value });
       const input = dot.createEl("input");
       input.type = "color";
       input.value = value;
       input.addClass("ivg-hidden-color");
       input.addEventListener("input", () => {
-        dot.style.background = input.value;
+        dot.setCssStyles({ background: input.value });
         onSet(input.value);
       });
-      input.addEventListener("change", async () => {
+      input.addEventListener("change", () => {
         onSet(input.value);
-        await this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings().then(() => this.render());
       });
       return { dot, input };
-    };
-    const colorPicker = (parent, value, onSet) => {
-      const { dot, input } = colorDot(parent, value, onSet);
-      dot.addEventListener("click", (e) => {
-        e.stopPropagation();
-        input.click();
-      });
-      return dot;
     };
     const populate = () => {
       panel.empty();
@@ -779,7 +768,7 @@ var GraphView = class extends import_obsidian2.ItemView {
           for (const p of this.plugin.settings.palettes) {
             const rowEl = b.createEl("div", { cls: "ivg-preset-row" });
             if (p.id === sel.id) rowEl.addClass("selected");
-            rowEl.addEventListener("click", async () => {
+            rowEl.addEventListener("click", () => {
               if (this.editName === p.id || this.editColors === p.id) {
                 this.editName = null;
                 this.editColors = null;
@@ -790,11 +779,10 @@ var GraphView = class extends import_obsidian2.ItemView {
               this.plugin.settings.palette = p.id;
               this.editName = null;
               this.editColors = null;
-              await this.plugin.saveSettings();
-              this.render();
+              void this.plugin.saveSettings().then(() => this.render());
             });
             if (this.editName === p.id) {
-              const nameIn = rowEl.createEl("input", { cls: "ivg-preset-name" });
+              const nameIn = rowEl.createEl("input", { cls: "ivg-preset-name", type: "text" });
               nameIn.type = "text";
               nameIn.value = p.name;
               nameIn.addEventListener("click", (e) => e.stopPropagation());
@@ -816,11 +804,11 @@ var GraphView = class extends import_obsidian2.ItemView {
                   populate();
                 }
               });
-              nameIn.addEventListener("blur", commitName);
+              nameIn.addEventListener("blur", () => void commitName());
               const del = rowEl.createEl("button", { cls: "ivg-preset-del", text: "Delete" });
               del.toggleClass("ivg-disabled", this.plugin.settings.palettes.length <= 1);
               del.addEventListener("mousedown", (e) => e.preventDefault());
-              del.addEventListener("click", async (e) => {
+              del.addEventListener("click", (e) => {
                 e.stopPropagation();
                 nameCommitted = true;
                 if (this.plugin.settings.palettes.length <= 1) return;
@@ -828,10 +816,9 @@ var GraphView = class extends import_obsidian2.ItemView {
                 this.plugin.settings.palettes = this.plugin.settings.palettes.filter((x) => x.id !== p.id);
                 if (wasSel) this.plugin.settings.palette = this.plugin.settings.palettes[0].id;
                 this.editName = null;
-                await applyLive();
-                populate();
+                void applyLive().then(() => populate());
               });
-              setTimeout(() => {
+              window.setTimeout(() => {
                 nameIn.focus();
                 nameIn.select();
               }, 0);
@@ -875,12 +862,11 @@ var GraphView = class extends import_obsidian2.ItemView {
           }
           const addBtn = b.createEl("button", { cls: "ivg-palette-add", text: "+" });
           addBtn.setAttribute("aria-label", "New preset");
-          addBtn.addEventListener("click", async () => {
+          addBtn.addEventListener("click", () => {
             this.addPreset();
             this.editName = null;
             this.editColors = null;
-            await applyLive();
-            populate();
+            void applyLive().then(() => populate());
           });
         });
         group(colorsBody, "Theme/VaultColors", "Vaults", 2, (b) => {
@@ -908,10 +894,9 @@ var GraphView = class extends import_obsidian2.ItemView {
               const opt = sel2.createEl("option", { text: nm, value: String(si) });
               if (si === ap.style) opt.selected = true;
             });
-            sel2.addEventListener("change", async () => {
+            sel2.addEventListener("change", () => {
               sel.vaultStyles[meta.name] = parseInt(sel2.value, 10);
-              await this.plugin.saveSettings();
-              this.render();
+              void this.plugin.saveSettings().then(() => this.render());
             });
           });
         });
@@ -962,17 +947,17 @@ var GraphView = class extends import_obsidian2.ItemView {
             });
             ri.addEventListener("change", () => rd.removeClass("selected"));
           }
-          const txt = row.createEl("input", { cls: "ivg-rule-txt" });
+          const txt = row.createEl("input", { cls: "ivg-rule-txt", type: "text" });
           txt.type = "text";
           txt.value = isNew ? "" : rule.query;
           txt.placeholder = "e.g. Diff(2+)";
           txt.addEventListener("click", (e) => e.stopPropagation());
           const suggestEl = wrap.createEl("div", { cls: "ivg-rule-suggest" });
-          suggestEl.style.display = "none";
+          suggestEl.setCssStyles({ display: "none" });
           const showSuggestions = (val) => {
             suggestEl.empty();
             if (val.trim() === "") {
-              suggestEl.style.display = "block";
+              suggestEl.setCssStyles({ display: "block" });
               const help = suggestEl.createEl("div", { cls: "ivg-rule-help" });
               help.createEl("div", { cls: "ivg-help-line bold", text: "Function(#)" });
               help.createEl("div", { cls: "ivg-help-line italic", text: "Use #+ or #- for ranges" });
@@ -981,10 +966,10 @@ var GraphView = class extends import_obsidian2.ItemView {
             }
             const sugs = suggestionsFor(val);
             if (!sugs.length) {
-              suggestEl.style.display = "none";
+              suggestEl.setCssStyles({ display: "none" });
               return;
             }
-            suggestEl.style.display = "block";
+            suggestEl.setCssStyles({ display: "block" });
             sugs.forEach(({ text, hint }) => {
               const item = suggestEl.createEl("div", { cls: "ivg-sug-item" });
               item.createEl("span", { cls: "ivg-sug-text", text });
@@ -993,14 +978,14 @@ var GraphView = class extends import_obsidian2.ItemView {
                 e.preventDefault();
                 txt.value = text;
                 txt.removeClass("ivg-rule-invalid");
-                suggestEl.style.display = "none";
+                suggestEl.setCssStyles({ display: "none" });
                 txt.dispatchEvent(new Event("change"));
               });
             });
           };
           txt.addEventListener("focus", () => showSuggestions(txt.value));
-          txt.addEventListener("blur", () => setTimeout(() => {
-            suggestEl.style.display = "none";
+          txt.addEventListener("blur", () => window.setTimeout(() => {
+            suggestEl.setCssStyles({ display: "none" });
           }, 160));
           txt.addEventListener("input", () => {
             const ok = !!parseQuery(txt.value);
@@ -1008,7 +993,7 @@ var GraphView = class extends import_obsidian2.ItemView {
             rd == null ? void 0 : rd.toggleClass("ivg-disabled", !ok);
             showSuggestions(txt.value);
           });
-          txt.addEventListener("change", async () => {
+          txt.addEventListener("change", () => {
             const term = parseQuery(txt.value);
             if (!term) {
               if (isNew && !txt.value.trim()) {
@@ -1024,21 +1009,19 @@ var GraphView = class extends import_obsidian2.ItemView {
             }
             rule.query = normalizeQuery(term);
             this.newQueryId = null;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
-          if (isNew) setTimeout(() => {
+          if (isNew) window.setTimeout(() => {
             txt.focus();
             showSuggestions("");
           }, 0);
           const rm = row.createEl("button", { cls: "ivg-preset-del", text: "\xD7" });
-          rm.addEventListener("click", async (e) => {
+          rm.addEventListener("click", (e) => {
             e.stopPropagation();
             const i = rules.indexOf(rule);
             if (i >= 0) rules.splice(i, 1);
             if (this.newQueryId === rule.id) this.newQueryId = null;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
           if (draggable) {
             const handle = row.createEl("span", { cls: "ivg-rule-handle" });
@@ -1052,29 +1035,28 @@ var GraphView = class extends import_obsidian2.ItemView {
               wrap.addClass("ivg-rule-dragging");
               const onMove = (ev) => {
                 const dy = ev.clientY - startY;
-                wrap.style.transform = `translateY(${dy}px)`;
+                wrap.setCssStyles({ transform: `translateY(${dy}px)` });
                 const ni = Math.max(0, Math.min(rules.length - 1, index + Math.round(dy / rowH)));
                 if (ni !== targetIdx) {
                   targetIdx = ni;
                   wrapEls.forEach((w, i) => {
                     if (w === wrap) return;
                     const shift = index < targetIdx ? i > index && i <= targetIdx ? -rowH : 0 : i < index && i >= targetIdx ? rowH : 0;
-                    w.style.transform = `translateY(${shift}px)`;
+                    w.setCssStyles({ transform: `translateY(${shift}px)` });
                   });
                 }
               };
-              const onUp = async () => {
+              const onUp = () => {
                 window.removeEventListener("mousemove", onMove);
                 window.removeEventListener("mouseup", onUp);
                 wrap.removeClass("ivg-rule-dragging");
                 wrapEls.forEach((w) => {
-                  w.style.transform = "";
+                  w.setCssStyles({ transform: "" });
                 });
                 if (targetIdx !== index) {
                   const [moved] = rules.splice(index, 1);
                   rules.splice(targetIdx, 0, moved);
-                  await this.plugin.saveSettings();
-                  this.render();
+                  void this.plugin.saveSettings().then(() => this.render());
                 }
               };
               window.addEventListener("mousemove", onMove);
@@ -1090,12 +1072,11 @@ var GraphView = class extends import_obsidian2.ItemView {
           );
           const add = fb.createEl("button", { cls: "ivg-palette-add", text: "+" });
           add.setAttribute("aria-label", "New filter");
-          add.addEventListener("click", async () => {
+          add.addEventListener("click", () => {
             const id = `f${(settings.filters.length ? Math.max(...settings.filters.map((x) => parseInt(x.id.replace(/\D/g, ""), 10) || 0)) : 0) + 1}`;
             settings.filters.push({ id, query: "" });
             this.newQueryId = id;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
         });
         group(intBody, "Intersections/Groups", "Groups", 2, (gb) => {
@@ -1106,12 +1087,11 @@ var GraphView = class extends import_obsidian2.ItemView {
           );
           const add = gb.createEl("button", { cls: "ivg-palette-add", text: "+" });
           add.setAttribute("aria-label", "New group");
-          add.addEventListener("click", async () => {
+          add.addEventListener("click", () => {
             const id = `g${(settings.groups.length ? Math.max(...settings.groups.map((x) => parseInt(x.id.replace(/\D/g, ""), 10) || 0)) : 0) + 1}`;
             settings.groups.push({ id, query: "", color: "#cccccc" });
             this.newQueryId = id;
-            await this.plugin.saveSettings();
-            this.render();
+            void this.plugin.saveSettings().then(() => this.render());
           });
         });
       });
@@ -1125,28 +1105,27 @@ var GraphView = class extends import_obsidian2.ItemView {
         const slider = (label, key, min, max, step, fmt) => {
           const row = db.createEl("div", { cls: "ivg-disp-row" });
           row.createEl("span", { cls: "ivg-disp-name", text: label });
-          const input = row.createEl("input");
+          const input = row.createEl("input", { type: "range" });
           input.type = "range";
           input.min = String(min);
           input.max = String(max);
           input.step = String(step);
           input.value = String(d[key]);
           const valEl = row.createEl("span", { cls: "ivg-disp-val", text: fmt(d[key]) });
-          input.addEventListener("input", async () => {
+          input.addEventListener("input", () => {
             d[key] = parseFloat(input.value);
             valEl.setText(fmt(parseFloat(input.value)));
-            await commit();
+            void commit();
           });
         };
         const toggle2 = (label, key) => {
           const row = db.createEl("label", { cls: "ivg-disp-row" });
-          const cb = row.createEl("input");
-          cb.type = "checkbox";
+          const cb = row.createEl("input", { type: "checkbox" });
           cb.checked = d[key];
           row.createEl("span", { cls: "ivg-disp-name", text: label });
-          cb.addEventListener("change", async () => {
+          cb.addEventListener("change", () => {
             d[key] = cb.checked;
-            await commit();
+            void commit();
           });
         };
         slider("Intersection size", "intersectionSize", 2, 10, 1, (v) => String(v));
@@ -1155,26 +1134,24 @@ var GraphView = class extends import_obsidian2.ItemView {
         toggle2("Intersection labels", "showIntersectionLabels");
         {
           const row = db.createEl("div", { cls: "ivg-disp-row" });
-          const cb = row.createEl("input");
-          cb.type = "checkbox";
+          const cb = row.createEl("input", { type: "checkbox" });
           cb.checked = d.fadeLabelsOnZoom;
-          cb.addEventListener("change", async () => {
+          cb.addEventListener("change", () => {
             d.fadeLabelsOnZoom = cb.checked;
-            await commit();
+            void commit();
           });
           row.createEl("span", { cls: "ivg-disp-name", text: "Fade zoom" });
-          const sl = row.createEl("input");
-          sl.type = "range";
+          const sl = row.createEl("input", { type: "range" });
           sl.min = "0.5";
           sl.max = "3.0";
           sl.step = "0.1";
           sl.value = String(d.fadeLabelAt);
-          sl.style.flex = "0 0 64px";
+          sl.setCssStyles({ flex: "0 0 64px" });
           const val = row.createEl("span", { cls: "ivg-disp-val", text: d.fadeLabelAt.toFixed(1) });
-          sl.addEventListener("input", async () => {
+          sl.addEventListener("input", () => {
             d.fadeLabelAt = parseFloat(sl.value);
             val.setText(d.fadeLabelAt.toFixed(1));
-            await commit();
+            void commit();
           });
         }
         toggle2("Vault labels", "showVaultLabels");
@@ -1183,25 +1160,23 @@ var GraphView = class extends import_obsidian2.ItemView {
           vaults.forEach((meta) => {
             const ap = this.appearance.get(meta.name);
             const r = b.createEl("label", { cls: "ivg-vault-row" });
-            const cb = r.createEl("input");
-            cb.type = "checkbox";
+            const cb = r.createEl("input", { type: "checkbox" });
             cb.checked = !dim.has(meta.name);
             r.createEl("span", { cls: "ivg-vault-name", text: meta.name });
             const sw = r.createEl("span", { cls: "ivg-preset-dot" });
-            sw.style.background = ap.color;
-            sw.style.pointerEvents = "none";
-            cb.addEventListener("change", async () => {
+            sw.setCssStyles({ background: ap.color, pointerEvents: "none" });
+            cb.addEventListener("change", () => {
               const set = new Set(this.plugin.settings.dimVaults);
               if (cb.checked) set.delete(meta.name);
               else set.add(meta.name);
               this.plugin.settings.dimVaults = [...set];
-              await applyLive();
+              void applyLive();
             });
           });
         });
       });
       const restoreBtn = panel.createEl("button", { cls: "ivg-restore-btn", text: "Restore Defaults" });
-      restoreBtn.addEventListener("click", async () => {
+      restoreBtn.addEventListener("click", () => {
         const s = this.plugin.settings;
         const customs = s.palettes.filter((p) => !SEED_PALETTES.some((seed2) => seed2.id === p.id));
         s.palettes = [...SEED_PALETTES.map(clonePalette), ...customs];
@@ -1209,8 +1184,7 @@ var GraphView = class extends import_obsidian2.ItemView {
         s.dimVaults = [];
         s.filters = [];
         s.groups = defaultGroups();
-        await this.plugin.saveSettings();
-        this.render();
+        void this.plugin.saveSettings().then(() => this.render());
       });
     };
     populate();
@@ -1420,8 +1394,8 @@ var GraphView = class extends import_obsidian2.ItemView {
         for (const other of lineEls) {
           if (other === le) continue;
           if ((_a2 = this.appearance.get(other.meta.name)) == null ? void 0 : _a2.dim) continue;
-          other.path.style.opacity = "0.9";
-          if (other.inner) other.inner.style.opacity = "0.9";
+          other.path.setCssStyles({ opacity: "0.9" });
+          if (other.inner) other.inner.setCssStyles({ opacity: "0.9" });
         }
         path3.style.strokeWidth = String(width + 1.4);
       });
@@ -1790,16 +1764,16 @@ ${differs ? "Versions DIFFER" : "Identical"} \u2014 drag to move, click to ${dif
     const loop = () => {
       const alive = sim.tick();
       syncAndDraw();
-      this.rafId = alive ? requestAnimationFrame(loop) : null;
+      this.rafId = alive ? window.requestAnimationFrame(loop) : null;
     };
     const ensureRunning = () => {
-      if (this.rafId === null) this.rafId = requestAnimationFrame(loop);
+      if (this.rafId === null) this.rafId = window.requestAnimationFrame(loop);
     };
     for (let i = 0; i < 300; i++) sim.tick();
     sim.reheat(0.15);
     syncAndDraw();
     (_b = this.applyDisplay) == null ? void 0 : _b.call(this);
-    this.rafId = requestAnimationFrame(loop);
+    this.rafId = window.requestAnimationFrame(loop);
     (_c = this.popGraph) == null ? void 0 : _c.call(this);
     return wrap;
   }
@@ -1851,7 +1825,7 @@ ${differs ? "Versions DIFFER" : "Identical"} \u2014 drag to move, click to ${dif
     if (allSame) {
       const dest = this.app.metadataCache.getFirstLinkpathDest(title, "");
       if (dest) {
-        this.app.workspace.getLeaf(false).openFile(dest);
+        void this.app.workspace.getLeaf(false).openFile(dest);
       } else {
         this.openNoteByPath(versions[0].filePath);
       }
@@ -2086,23 +2060,23 @@ var IntervaultGraphPlugin = class extends import_obsidian3.Plugin {
       callback: () => this.openGraphView()
     });
     this.addRibbonIcon("git-fork", "Intervault Graph", () => this.openGraphView());
-    injectStyles(document);
+    injectStyles(activeDocument);
   }
   async openGraphView() {
-    var _a, _b;
+    var _a;
     const existing = this.app.workspace.getLeavesOfType(GRAPH_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
-      (_b = (_a = existing[0].view).render) == null ? void 0 : _b.call(_a);
+      await this.app.workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof GraphView) (_a = view.render) == null ? void 0 : _a.call(view);
       return;
     }
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({ type: GRAPH_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
-  onunload() {
-    this.app.workspace.detachLeavesOfType(GRAPH_VIEW_TYPE);
-  }
+  // onunload intentionally empty: do NOT detach leaves, as that resets
+  // the leaf to its default location even if the user moved it.
   async loadSettings() {
     var _a, _b;
     const raw = await this.loadData();
@@ -2117,12 +2091,12 @@ var IntervaultGraphPlugin = class extends import_obsidian3.Plugin {
     if (!merged.palettes.some((p) => p.id === merged.palette)) {
       merged.palette = merged.palettes[0].id;
     }
-    merged.filters = Array.isArray(raw == null ? void 0 : raw.filters) ? raw.filters.filter((f) => f && typeof f.query === "string").map((f, i) => {
+    merged.filters = Array.isArray(raw == null ? void 0 : raw.filters) ? raw.filters.filter((f) => f != null && typeof f.query === "string").map((f, i) => {
       var _a2;
       return { id: (_a2 = f.id) != null ? _a2 : `f${i}`, query: f.query };
     }) : [];
     if (Array.isArray(raw == null ? void 0 : raw.groups)) {
-      merged.groups = raw.groups.filter((g) => g && typeof g.query === "string").map((g, i) => {
+      merged.groups = raw.groups.filter((g) => g != null && typeof g.query === "string").map((g, i) => {
         var _a2, _b2;
         return { id: (_a2 = g.id) != null ? _a2 : `g${i}`, query: g.query, color: (_b2 = g.color) != null ? _b2 : "#888888" };
       });

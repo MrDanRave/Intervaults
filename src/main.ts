@@ -10,7 +10,6 @@ import {
   clonePalette,
   defaultDisplay,
   defaultGroups,
-  toVaultConfigs,
 } from "./settings";
 import { GRAPH_VIEW_TYPE, GraphView } from "./view";
 
@@ -67,24 +66,24 @@ export default class IntervaultGraphPlugin extends Plugin {
 
     this.addRibbonIcon("git-fork", "Intervault Graph", () => this.openGraphView());
 
-    injectStyles(document);
+    injectStyles(activeDocument);
   }
 
   async openGraphView() {
     const existing = this.app.workspace.getLeavesOfType(GRAPH_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
-      (existing[0].view as GraphView).render?.();
+      await this.app.workspace.revealLeaf(existing[0]);
+      const view = existing[0].view;
+      if (view instanceof GraphView) view.render?.();
       return;
     }
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({ type: GRAPH_VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 
-  onunload() {
-    this.app.workspace.detachLeavesOfType(GRAPH_VIEW_TYPE);
-  }
+  // onunload intentionally empty: do NOT detach leaves, as that resets
+  // the leaf to its default location even if the user moved it.
 
   async loadSettings() {
     const raw = (await this.loadData()) as Partial<IntervaultSettings> | null;
@@ -106,17 +105,17 @@ export default class IntervaultGraphPlugin extends Plugin {
 
     // Global filters: keep any stored array (even empty), else none.
     merged.filters = Array.isArray(raw?.filters)
-      ? (raw!.filters as Array<Partial<QueryRule>>)
-          .filter((f) => f && typeof f.query === "string")
-          .map((f, i) => ({ id: f.id ?? `f${i}`, query: f.query as string }))
+      ? (raw!.filters as Partial<QueryRule>[])
+          .filter((f): f is Partial<QueryRule> & { query: string } => f != null && typeof f.query === "string")
+          .map((f, i) => ({ id: f.id ?? `f${i}`, query: f.query }))
       : [];
 
     // Global groups: keep any stored array (even empty = "user deleted all");
     // otherwise migrate from legacy per-palette colours, else seed defaults.
     if (Array.isArray(raw?.groups)) {
-      merged.groups = (raw!.groups as Array<Partial<GroupRule>>)
-        .filter((g) => g && typeof g.query === "string")
-        .map((g, i) => ({ id: g.id ?? `g${i}`, query: g.query as string, color: g.color ?? "#888888" }));
+      merged.groups = (raw!.groups as Partial<GroupRule>[])
+        .filter((g): g is Partial<GroupRule> & { query: string } => g != null && typeof g.query === "string")
+        .map((g, i) => ({ id: g.id ?? `g${i}`, query: g.query, color: g.color ?? "#888888" }));
     } else {
       merged.groups = migrateGroups(raw as Record<string, unknown> | null) ?? defaultGroups();
     }

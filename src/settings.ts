@@ -120,7 +120,7 @@ export class IntervaultSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Intervault Graph" });
+    new Setting(containerEl).setName("Intervault Graph").setHeading();
 
     containerEl.createEl("p", {
       cls: "setting-item-description",
@@ -134,7 +134,7 @@ export class IntervaultSettingTab extends PluginSettingTab {
         ta.setPlaceholder("C:\\Users\\you\\Vaults\\Work\nC:\\Users\\you\\Vaults\\Personal");
         ta.setValue(this.plugin.settings.vaultPaths.join("\n"));
         ta.inputEl.rows = 8;
-        ta.inputEl.style.width = "100%";
+        ta.inputEl.setCssStyles({ width: "100%" });
         ta.onChange(async (value) => {
           this.plugin.settings.vaultPaths = value.split("\n");
           await this.plugin.saveSettings();

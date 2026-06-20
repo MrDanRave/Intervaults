@@ -33,7 +33,7 @@ const PALETTE = [
   "#56b6c2", "#d19a66", "#be5046", "#528bff", "#7f848e",
 ];
 
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
 
 /**
  * Centripetal Catmull-Rom spline (alpha = 0.5) through points → cubic Bézier.
@@ -83,7 +83,6 @@ export function computeScatter(data: GraphData, width = 900, height = 620): Scat
   const R = Math.min(width, height) * 0.46;
 
   const titles = [...data.sharedTitles]; // already globally sorted
-  const n = titles.length;
 
   const notes: NoteNode[] = [];
   titles.forEach((title) => {
