@@ -442,7 +442,7 @@ function parseQuery(s) {
   if (mm = tok.match(/^(\d+)$/)) return { fn, op: "eq", n: parseInt(mm[1], 10) };
   return null;
 }
-function matchQuery(t, s, totalVaults) {
+function matchQuery(t, s) {
   const basis = t.fn === "diff" ? s.distinct : t.fn === "merge" ? s.maxCluster : s.total;
   switch (t.op) {
     case "eq":
@@ -452,7 +452,7 @@ function matchQuery(t, s, totalVaults) {
     case "lte":
       return basis <= t.n;
     case "all":
-      return basis === totalVaults;
+      return basis === s.total;
   }
   return false;
 }
@@ -522,6 +522,7 @@ function deCross(order, pos) {
   return o;
 }
 var GraphView = class extends import_obsidian2.ItemView {
+  // Configured vault count for this render (used by query "*" / classifyDot)
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
@@ -543,8 +544,6 @@ var GraphView = class extends import_obsidian2.ItemView {
     this.editColorIdx = 0;
     // ID of a freshly-added filter/group rule that renders with an empty textbox
     this.newQueryId = null;
-    // Configured vault count for this render (used by query "*" / classifyDot)
-    this.renderTotalVaults = 0;
   }
   getViewType() {
     return GRAPH_VIEW_TYPE;
@@ -597,14 +596,12 @@ var GraphView = class extends import_obsidian2.ItemView {
     }
     const info = container.createEl("div", { cls: "ivg-info" });
     const statsMap = this.computeNoteStats(data);
-    const totalVaults = vaults.length;
-    this.renderTotalVaults = totalVaults;
     const filterTerms = ((_a = this.plugin.settings.filters) != null ? _a : []).map((f) => parseQuery(f.query)).filter((t) => t !== null);
     const passes = (title) => {
       if (filterTerms.length === 0) return true;
       const s = statsMap.get(title);
       if (!s) return false;
-      return filterTerms.every((t) => matchQuery(t, s, totalVaults));
+      return filterTerms.every((t) => matchQuery(t, s));
     };
     const keptTitles = data.sharedTitles.filter(passes);
     const filteredIndex = /* @__PURE__ */ new Map();
@@ -640,7 +637,7 @@ var GraphView = class extends import_obsidian2.ItemView {
     var _a;
     for (const g of (_a = this.plugin.settings.groups) != null ? _a : []) {
       const term = parseQuery(g.query);
-      if (term && matchQuery(term, stats, this.renderTotalVaults)) return g.color;
+      if (term && matchQuery(term, stats)) return g.color;
     }
     return GREY;
   }
