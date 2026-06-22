@@ -1,7 +1,7 @@
 {
   "id": "intervaults",
   "name": "Intervaults",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.7.2",
   "description": "Visualise multiple vaults as an interactive graph, compare shared notes across vaults, and merge conflicting versions side-by-side.",
   "author": "MrDanRave",

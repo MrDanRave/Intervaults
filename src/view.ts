@@ -13,7 +13,7 @@ const GREY = "#888888"; // intersection colour when no group matches
 
 // ── Intersection query language: Fn(Count) ────────────────────────────────────
 // Fn ∈ {Diff, Merge/Merged, Meet (=any status)}; Count ∈ {N | N+ | N- | *}.
-// "*" means "present in EVERY configured vault".
+// "*" means "all vaults this note appears in" (not all configured vaults).
 type CountOp = "eq" | "gte" | "lte" | "all";
 interface QueryTerm { fn: "diff" | "merge" | "meet"; op: CountOp; n: number; }
 
@@ -47,14 +47,17 @@ interface NoteStats {
 
 /** Does an intersection satisfy a query term, under the cluster model?
  *  Each function reads a different basis: diff→distinct versions,
- *  merge→largest identical group, meet→total vaults. */
-function matchQuery(t: QueryTerm, s: NoteStats, totalVaults: number): boolean {
+ *  merge→largest identical group, meet→total vaults.
+ *  "*" means the basis equals the note's own vault count (s.total), not the
+ *  total configured vaults — so Merged(*) means "all copies of this note are
+ *  identical", regardless of how many other vaults exist. */
+function matchQuery(t: QueryTerm, s: NoteStats): boolean {
   const basis = t.fn === "diff" ? s.distinct : t.fn === "merge" ? s.maxCluster : s.total;
   switch (t.op) {
     case "eq": return basis === t.n;
     case "gte": return basis >= t.n;
     case "lte": return basis <= t.n;
-    case "all": return basis === totalVaults; // "*" = spans every configured vault
+    case "all": return basis === s.total;
   }
   return false;
 }
@@ -157,7 +160,6 @@ export class GraphView extends ItemView {
   // ID of a freshly-added filter/group rule that renders with an empty textbox
   private newQueryId: string | null = null;
   // Configured vault count for this render (used by query "*" / classifyDot)
-  private renderTotalVaults = 0;
 
   constructor(leaf: WorkspaceLeaf, private plugin: IntervaultGraphPlugin) {
     super(leaf);
@@ -217,9 +219,6 @@ export class GraphView extends ItemView {
     const info = container.createEl("div", { cls: "ivg-info" });
 
     const statsMap = this.computeNoteStats(data);
-    const totalVaults = vaults.length;
-    this.renderTotalVaults = totalVaults;
-
     // ── Filters (global, AND-combined) decide which intersections build the graph.
     // Invalid/empty filters are ignored; no valid filters → every intersection shown.
     const filterTerms = (this.plugin.settings.filters ?? [])
@@ -229,7 +228,7 @@ export class GraphView extends ItemView {
       if (filterTerms.length === 0) return true;
       const s = statsMap.get(title);
       if (!s) return false;
-      return filterTerms.every((t) => matchQuery(t, s, totalVaults));
+      return filterTerms.every((t) => matchQuery(t, s));
     };
     const keptTitles = data.sharedTitles.filter(passes);
 
@@ -270,7 +269,7 @@ export class GraphView extends ItemView {
   private classifyDot(stats: NoteStats): string {
     for (const g of this.plugin.settings.groups ?? []) {
       const term = parseQuery(g.query);
-      if (term && matchQuery(term, stats, this.renderTotalVaults)) return g.color;
+      if (term && matchQuery(term, stats)) return g.color;
     }
     return GREY;
   }
