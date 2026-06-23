@@ -39,7 +39,7 @@ Filters and colour groups use a small query language:
 | `Merged(n)` | the largest group of identical versions spans `n` vaults |
 | `Diff(n)` | the note has `n` distinct content versions |
 
-Append `+` / `-` for ranges, or `*` for "all configured vaults":
+Append `+` / `-` for ranges, or `*` for "all vaults note appears in":
 
 ```
 Meet(3)      — in exactly 3 vaults
